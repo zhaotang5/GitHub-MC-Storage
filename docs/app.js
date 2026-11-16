@@ -1,8 +1,8 @@
 /* ============================================================
- * GitHub 网盘 v0.1.0
+ * GitHub 网盘 v0.1.1
  * 存储：GitHub 仓库（API 读写）
  * 下载：jsDelivr CDN
- * 账号：仓库根目录 users.json（内置账号密码，加盐 SHA-256）
+ * 账号：仓库根目录 users.json（AES-GCM 加密，密码 PBKDF2 哈希）
  * ============================================================ */
 
 const CONFIG = {
@@ -17,11 +17,14 @@ const CONFIG = {
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.1.0";
+const VERSION = "v0.1.1";
 const SESSION_KEY = "ghdrive_session";
+const MASTER_KEY = "ghdrive_master";
+const PBKDF2_ITER = 150000;
 
 let session = null;
-let usersFile = null; // { sha, data: { users: [...] } }
+let masterPass = null;
+let usersFile = null; // { sha, data: { users: [...] }, encrypted }
 let cwd = "";
 let items = [];
 let selected = new Set();
@@ -71,13 +74,28 @@ function b64ToText(b64) {
   return new TextDecoder().decode(bytes);
 }
 
-async function sha256Hex(str) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+function b64(buf) {
+  let s = "";
+  const b = new Uint8Array(buf);
+  for (const x of b) s += String.fromCharCode(x);
+  return btoa(s);
+}
+
+function unb64(str) {
+  const s = atob(str);
+  const a = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+  return a;
+}
+
+function hexToBytes(hex) {
+  const a = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < a.length; i++) a[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return a;
 }
 
 function randomSalt() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(8)))
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)))
     .map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -88,6 +106,60 @@ function fileToB64(file) {
     r.onerror = reject;
     r.readAsDataURL(file);
   });
+}
+
+/* ---------------- 密码学 ---------------- */
+
+async function sha256Hex(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function deriveKey(pass, saltBytes) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: saltBytes, iterations: PBKDF2_ITER, hash: "SHA-256" },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+  );
+}
+
+async function hashPassword(saltHex, pwd) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pwd), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: hexToBytes(saltHex), iterations: PBKDF2_ITER, hash: "SHA-256" }, base, 256
+  );
+  return "pbkdf2:" + Array.from(new Uint8Array(bits)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyPassword(u, pwd) {
+  if (u.hash.indexOf("pbkdf2:") === 0) {
+    return (await hashPassword(u.salt, pwd)) === u.hash;
+  }
+  return (await sha256Hex(u.salt + pwd)) === u.hash; // 兼容旧版 SHA-256
+}
+
+async function encryptUsers(data, pass) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pass, salt);
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(data)));
+  return JSON.stringify({ v: 1, alg: "A256GCM", salt: b64(salt), iv: b64(iv), ct: b64(ct) });
+}
+
+async function decryptUsers(str, pass) {
+  const env = JSON.parse(str);
+  const key = await deriveKey(pass, unb64(env.salt));
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(env.iv) }, key, unb64(env.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+function isEncrypted(raw) {
+  try {
+    const j = JSON.parse(raw);
+    return j && j.v === 1 && j.ct && j.salt && j.iv;
+  } catch (e) {
+    return false;
+  }
 }
 
 /* ---------------- GitHub API ---------------- */
@@ -130,28 +202,37 @@ function downloadUrl(item) {
 /* ---------------- users.json ---------------- */
 
 async function loadUsers() {
-  try {
-    const d = await api(contentsUrl(CONFIG.usersPath));
-    usersFile = { sha: d.sha, data: JSON.parse(b64ToText(d.content)) };
-    return true;
-  } catch (e) {
-    if (e.status === 404) { usersFile = null; return false; }
-    throw e;
+  const d = await api(contentsUrl(CONFIG.usersPath));
+  const raw = b64ToText(d.content);
+  usersFile = { sha: d.sha, raw: raw };
+  if (isEncrypted(raw)) {
+    usersFile.data = await decryptUsers(raw, masterPass);
+    usersFile.encrypted = true;
+  } else {
+    usersFile.data = JSON.parse(raw);
+    usersFile.encrypted = false;
   }
+  return true;
+}
+
+async function loadUsersIfMissing() {
+  if (!masterPass) throw new Error("缺少访问口令，请重新登录");
+  await loadUsers();
 }
 
 async function saveUsers() {
   if (!CONFIG.token) throw new Error("未配置 Token，无法写入");
-  // 写入前重新取 sha，避免冲突
+  if (!masterPass) throw new Error("缺少访问口令");
   let sha = usersFile ? usersFile.sha : undefined;
   try {
     const d = await api(contentsUrl(CONFIG.usersPath));
     sha = d.sha;
   } catch (e) { if (e.status !== 404) throw e; }
+  const json = await encryptUsers(usersFile.data, masterPass);
   const body = {
     message: "chore: 更新用户数据",
     branch: CONFIG.branch,
-    content: textToB64(JSON.stringify(usersFile.data, null, 2))
+    content: textToB64(json)
   };
   if (sha) body.sha = sha;
   const r = await api("/repos/" + CONFIG.owner + "/" + CONFIG.repo + "/contents/" + encPath(CONFIG.usersPath), {
@@ -159,6 +240,7 @@ async function saveUsers() {
     body: JSON.stringify(body)
   });
   usersFile.sha = r.content.sha;
+  usersFile.encrypted = true;
 }
 
 function findUser(name) {
@@ -169,18 +251,22 @@ function findUser(name) {
 
 function saveSession() {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  sessionStorage.setItem(MASTER_KEY, masterPass);
 }
 
 function loadSession() {
   try {
     const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
     if (s && s.exp > Date.now()) session = s;
+    masterPass = sessionStorage.getItem(MASTER_KEY);
   } catch (e) {}
 }
 
 function logout() {
   session = null;
+  masterPass = null;
   sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(MASTER_KEY);
   renderLogin();
 }
 
@@ -205,8 +291,10 @@ function renderInit() {
         <div class="ore-card-body">
           <div class="ore-card-caption">
             <div class="ore-card-title">初始化网盘</div>
-            <div class="ore-card-description">未在仓库中找到 ${esc(CONFIG.usersPath)}，请创建管理员账号。管理员默认拥有全部权限。</div>
+            <div class="ore-card-description">未在仓库中找到 ${esc(CONFIG.usersPath)}。请设置「访问口令」和管理员账号。访问口令用于加密用户数据，请牢记，不会存进仓库。</div>
           </div>
+          <label class="f">访问口令</label>
+          <input type="password" id="initMaster">
           <label class="f">管理员用户名</label>
           <input type="text" id="initName" autocomplete="off">
           <label class="f">管理员密码</label>
@@ -220,15 +308,17 @@ function renderInit() {
       <footer>GitHub 网盘 ${VERSION}</footer>
     </div>`;
   $("initBtn").addEventListener("click", async () => {
+    const mp = $("initMaster").value;
     const name = $("initName").value.trim();
     const pwd = $("initPwd").value;
-    if (!name || !pwd) return setStatus("请填写用户名和密码", true);
+    if (!mp || !name || !pwd) return setStatus("请填写访问口令、用户名和密码", true);
     try {
       setStatus("正在创建…");
+      masterPass = mp;
       const salt = randomSalt();
       usersFile = {
-        sha: null,
-        data: { version: 1, users: [{ u: name, role: "admin", salt: salt, hash: await sha256Hex(salt + pwd), perm: { upload: true, download: true } }] }
+        sha: null, encrypted: false,
+        data: { version: 2, users: [{ u: name, role: "admin", salt: salt, hash: await hashPassword(salt, pwd), perm: { upload: true, download: true } }] }
       };
       await saveUsers();
       session = { u: name, role: "admin", perm: { upload: true, download: true }, exp: Date.now() + 12 * 3600 * 1000 };
@@ -250,8 +340,10 @@ function renderLogin() {
         <div class="ore-card-body">
           <div class="ore-card-caption">
             <div class="ore-card-title">GitHub 网盘</div>
-            <div class="ore-card-description">请登录后访问文件</div>
+            <div class="ore-card-description">请输入访问口令和账号密码</div>
           </div>
+          <label class="f">访问口令</label>
+          <input type="password" id="loginMaster">
           <label class="f">用户名</label>
           <input type="text" id="loginName" autocomplete="off">
           <label class="f">密码</label>
@@ -265,22 +357,28 @@ function renderLogin() {
       <footer>GitHub 网盘 ${VERSION}</footer>
     </div>`;
   const doLogin = async () => {
+    const mp = $("loginMaster").value;
     const name = $("loginName").value.trim();
     const pwd = $("loginPwd").value;
-    if (!name || !pwd) return setStatus("请填写用户名和密码", true);
+    if (!mp || !name || !pwd) return setStatus("请填写访问口令、用户名和密码", true);
     try {
       setStatus("验证中…");
+      masterPass = mp;
       await loadUsers();
       const u = findUser(name);
       if (!u) return setStatus("用户名或密码错误", true);
-      const h = await sha256Hex(u.salt + pwd);
-      if (h !== u.hash) return setStatus("用户名或密码错误", true);
+      if (!(await verifyPassword(u, pwd))) return setStatus("用户名或密码错误", true);
       session = { u: u.u, role: u.role, perm: u.perm, exp: Date.now() + 12 * 3600 * 1000 };
       saveSession();
       cwd = "";
+      if (!usersFile.encrypted && isAdmin()) {
+        setStatus("正在加密用户数据…");
+        await saveUsers();
+      }
       renderBrowser();
     } catch (e) {
-      setStatus("登录失败：" + e.message, true);
+      if (e.name === "OperationError") setStatus("访问口令错误", true);
+      else setStatus("登录失败：" + e.message, true);
     }
   };
   $("loginBtn").addEventListener("click", doLogin);
@@ -560,10 +658,10 @@ async function changeMyPassword() {
   if (!pwd) return;
   try {
     setStatus("正在修改…");
-    await loadUsers();
+    await loadUsersIfMissing();
     const u = findUser(session.u);
     u.salt = randomSalt();
-    u.hash = await sha256Hex(u.salt + pwd);
+    u.hash = await hashPassword(u.salt, pwd);
     await saveUsers();
     setStatus("密码已修改");
   } catch (e) {
@@ -604,7 +702,7 @@ async function renderAdmin() {
 
   $("backBtn").addEventListener("click", renderBrowser);
   try {
-    await loadUsers();
+    await loadUsersIfMissing();
     renderUserTable();
   } catch (e) {
     $("userBox").innerHTML = `<div class="empty-tip">加载失败：${esc(e.message)}</div>`;
@@ -621,7 +719,7 @@ async function renderAdmin() {
       const salt = randomSalt();
       usersFile.data.users.push({
         u: name, role: "user", salt: salt,
-        hash: await sha256Hex(salt + pwd),
+        hash: await hashPassword(salt, pwd),
         perm: { upload: up, download: true }
       });
       await saveUsers();
@@ -670,7 +768,7 @@ function renderUserTable() {
       if (!pwd) return;
       try {
         u.salt = randomSalt();
-        u.hash = await sha256Hex(u.salt + pwd);
+        u.hash = await hashPassword(u.salt, pwd);
         await saveUsers();
         setStatus("已重置 " + u.u + " 的密码");
       } catch (e) {
@@ -698,15 +796,18 @@ function renderUserTable() {
 
 (async function boot() {
   loadSession();
+  if (session && masterPass) {
+    renderBrowser();
+    return;
+  }
   try {
-    const ok = await loadUsers();
-    if (!ok) return renderInit();
+    const d = await api(contentsUrl(CONFIG.usersPath));
+    renderLogin();
   } catch (e) {
+    if (e.status === 404) { renderInit(); return; }
     app.innerHTML = `<div class="center-box"><ore-card><div class="ore-card-body">
       <div class="empty-tip">初始化失败：${esc(e.message)}<br><br>
       请检查 app.js 顶部 CONFIG 中的 owner / repo / branch 是否正确，仓库必须为 Public。</div>
     </div></div></div>`;
-    return;
   }
-  if (session) renderBrowser(); else renderLogin();
 })();
