@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub 网盘 v0.1.0</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@latest/dist/styles.css">
+<script type="module">
+  import "https://cdn.jsdelivr.net/npm/oreui-web@latest/+esm";
+</script>
+<style>
+  html, body {
+    background: #000;
+    color: #eee;
+    color-scheme: dark;
+    margin: 0;
+    min-height: 100vh;
+  }
+  ore-card {
+    display: block;
+    box-sizing: border-box;
+    --ore-card-background: #1c1c1c;
+    --ore-card-foreground: #ffffff;
+    --ore-card-description: #b8b8b8;
+    --ore-card-border: #3d3d3d;
+    --ore-card-highlight: rgba(255, 255, 255, 0.08);
+    --ore-card-shadow: rgba(0, 0, 0, 0.6);
+  }
+  ore-button { display: inline-block; }
+  #app {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 16px 48px;
+    box-sizing: border-box;
+  }
+  .center-box {
+    max-width: 380px;
+    margin: 10vh auto 0;
+  }
+  .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  h1 { font-size: 24px; margin: 0; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  .muted { opacity: 0.65; font-size: 13px; }
+
+  label.f { display: block; margin: 12px 0 4px; font-size: 14px; }
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    font-size: 14px;
+    color: #fff;
+    background: #0d0d0d;
+    border: 2px solid #3d3d3d;
+    outline: none;
+    font-family: inherit;
+  }
+  input[type="text"]:focus, input[type="password"]:focus { border-color: #4c8bf5; }
+  .btn-col { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .crumb { margin: 12px 0; font-size: 14px; }
+  .crumb a { color: #4c8bf5; cursor: pointer; text-decoration: none; }
+  .crumb a:hover { text-decoration: underline; }
+
+  table.files { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.files th, table.files td {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    white-space: nowrap;
+  }
+  table.files td.name {
+    white-space: normal;
+    word-break: break-all;
+    cursor: pointer;
+    color: #e8e8e8;
+  }
+  table.files td.name:hover { color: #4c8bf5; }
+  table.files th { color: #999; font-weight: normal; font-size: 13px; }
+  .row-actions button {
+    background: none;
+    border: none;
+    color: #4c8bf5;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    font-family: inherit;
+  }
+  .row-actions button.danger { color: #f47e7e; }
+  .row-actions button:hover { text-decoration: underline; }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 12px 0;
+  }
+  .status { font-size: 13px; color: #8bc34a; min-height: 18px; }
+  .status.err { color: #f47e7e; }
+
+  table.users { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.users th, table.users td {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  table.users th { color: #999; font-weight: normal; font-size: 13px; }
+
+  .hidden { display: none !important; }
+  footer { text-align: center; opacity: 0.6; font-size: 12px; margin-top: 32px; }
+  .empty-tip { text-align: center; padding: 32px 0; opacity: 0.6; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="filePicker" class="hidden" multiple>
+<script src="app.js"></script>
+</body>
+</html>
