@@ -9,7 +9,7 @@ const CONFIG = {
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.1.5";
+const VERSION = "v0.1.6";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
 const TOKEN_KEY = "ghdrive_token";
@@ -54,6 +54,33 @@ function refreshTokenUI() {
   b.textContent = getToken() ? "Token 已设置" : "设置 Token";
   const c = $("clearTokenBtn");
   if (c) c.style.display = getToken() ? "" : "none";
+}
+
+function globalBar() {
+  return `<div class="global-bar">
+    <ore-button type="button" id="tokenBtn">${getToken() ? "Token 已设置" : "设置 Token"}</ore-button>
+    <ore-button type="button" id="clearTokenBtn" style="${getToken() ? "" : "display:none;"}">清除 Token</ore-button>
+    <ore-button type="button" id="histBtn">版本履历</ore-button>
+  </div>`;
+}
+
+function bindGlobalBar() {
+  const b = $("tokenBtn");
+  const c = $("clearTokenBtn");
+  const h = $("histBtn");
+  if (b) b.addEventListener("click", () => askToken(false));
+  if (c) c.addEventListener("click", () => {
+    clearToken();
+    setStatus("Token 已清除");
+    refreshTokenUI();
+  });
+  if (h) h.addEventListener("click", showHistory);
+}
+
+function showHistory() {
+  const m = $("historyModal");
+  if (!m) return;
+  m.style.display = "flex";
 }
 
 function esc(s) {
@@ -318,8 +345,10 @@ function renderInit() {
           <div class="status" id="status"></div>
         </div>
       </ore-card>
+      ${globalBar()}
       <footer>GitHub 网盘 ${VERSION}</footer>
     </div>`;
+  bindGlobalBar();
   $("initBtn").addEventListener("click", async () => {
     const mp = $("initMaster").value;
     const name = $("initName").value.trim();
@@ -365,8 +394,10 @@ function renderLogin() {
           <div class="status" id="status"></div>
         </div>
       </ore-card>
+      ${globalBar()}
       <footer>GitHub 网盘 ${VERSION}</footer>
     </div>`;
+  bindGlobalBar();
   const doLogin = async () => {
     const mp = $("loginMaster").value;
     const name = $("loginName").value.trim();
@@ -441,8 +472,10 @@ async function renderBrowser() {
         <div id="listBox"><div class="empty-tip">加载中…</div></div>
       </div>
     </ore-card>
+    ${globalBar()}
     <footer>GitHub 网盘 ${VERSION} · 存储：${esc(CONFIG.owner)}/${esc(CONFIG.repo)} · 下载加速：jsDelivr</footer>`;
 
+  bindGlobalBar();
   $("logoutBtn").addEventListener("click", logout);
   $("pwdBtn").addEventListener("click", changeMyPassword);
   if (isAdmin()) $("adminBtn").addEventListener("click", renderAdmin);
@@ -469,16 +502,8 @@ function renderToolbar() {
     ${up ? '<ore-button type="button" id="batchDelBtn">批量删除</ore-button>' : ""}
     <ore-button type="button" id="batchDlBtn">批量下载</ore-button>
     <ore-button type="button" id="refreshBtn">刷新</ore-button>
-    <ore-button type="button" id="tokenBtn">${getToken() ? "Token 已设置" : "设置 Token"}</ore-button>
-    <ore-button type="button" id="clearTokenBtn" style="${getToken() ? "" : "display:none;"}">清除 Token</ore-button>
     ${up ? '<span class="muted">单文件建议 50MB 以内</span>' : '<span class="muted">你当前只有下载权限</span>'}
   `;
-  $("tokenBtn").addEventListener("click", () => askToken(false));
-  $("clearTokenBtn").addEventListener("click", () => {
-    clearToken();
-    setStatus("Token 已清除");
-    refreshTokenUI();
-  });
   if (up) {
     $("uploadBtn").addEventListener("click", () => $("filePicker").click());
     $("mkdirBtn").addEventListener("click", mkdir);
@@ -709,8 +734,10 @@ async function renderAdmin() {
         <div class="status" id="status"></div>
       </div>
     </ore-card>
+    ${globalBar()}
     <footer>GitHub 网盘 ${VERSION}</footer>`;
 
+  bindGlobalBar();
   $("backBtn").addEventListener("click", renderBrowser);
   try {
     await loadUsersIfMissing();
