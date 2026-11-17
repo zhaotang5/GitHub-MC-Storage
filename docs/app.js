@@ -1,5 +1,5 @@
 /* ============================================================
- * GitHub 网盘 v0.1.1
+ * GitHub 网盘 v0.1.2
  * 存储：GitHub 仓库（API 读写）
  * 下载：jsDelivr CDN
  * 账号：仓库根目录 users.json（AES-GCM 加密，密码 PBKDF2 哈希）
@@ -17,7 +17,7 @@ const CONFIG = {
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.1.1";
+const VERSION = "v0.1.2";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
 const PBKDF2_ITER = 150000;
@@ -683,7 +683,7 @@ async function renderAdmin() {
         <div id="userBox"><div class="empty-tip">加载中…</div></div>
       </div>
     </ore-card>
-    <div style="height:16px"></div>
+    <div class="gap"></div>
     <ore-card>
       <div class="ore-card-body">
         <h2>添加用户</h2>
