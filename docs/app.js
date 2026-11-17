@@ -9,11 +9,12 @@ const CONFIG = {
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.1.6";
+const VERSION = "v0.1.7";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
 const TOKEN_KEY = "ghdrive_token";
 const PBKDF2_ITER = 150000;
+const HIDDEN_NAMES = new Set(["doc", "docs", "LICENSE", "users.json"]);
 
 let session = null;
 let masterPass = null;
@@ -430,7 +431,8 @@ function renderLogin() {
 async function loadList() {
   try {
     const d = await api(contentsUrl(cwd));
-    items = Array.isArray(d) ? d : [d];
+    const list = Array.isArray(d) ? d : [d];
+    items = list.filter((it) => !HIDDEN_NAMES.has(it.name));
     items.sort((a, b) => {
       if ((a.type === "dir") !== (b.type === "dir")) return a.type === "dir" ? -1 : 1;
       return a.name.localeCompare(b.name);

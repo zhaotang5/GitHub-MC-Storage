@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>GitHub 网盘 v0.1.6</title>
+<title>GitHub 网盘 v0.1.7</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@latest/dist/styles.css">
 <script type="module">
   import "https://cdn.jsdelivr.net/npm/oreui-web@latest/+esm";
@@ -130,10 +130,16 @@
   .toolbar {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     margin: 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
   }
+  .toolbar > * { flex: 0 0 auto; }
+  .toolbar::-webkit-scrollbar { height: 6px; }
+  .toolbar::-webkit-scrollbar-thumb { background: #3d3d3d; border-radius: 3px; }
   .status { font-size: 13px; color: #8bc34a; min-height: 18px; }
   .status.err { color: #f47e7e; }
 
@@ -224,6 +230,8 @@
       <button id="historyClose">关闭</button>
     </div>
     <div class="modal-body">
+      <div class="hist"><b>v0.1.7</b><p>· 列表自动隐藏 docs 文件夹、LICENSE、users.json
+· 「上传文件 / 新建文件夹 / 批量删除 / 批量下载 / 刷新」固定在一排，超宽时横向滚动</p></div>
       <div class="hist"><b>v0.1.6</b><p>· 所有页面（初始化 / 登录 / 文件 / 人员管理）统一加入「设置 Token」「清除 Token」「版本履历」按钮
 · 新增版本履历弹窗</p></div>
       <div class="hist"><b>v0.1.5</b><p>· 移除源码中的内置 Token，改为页面内设置
@@ -250,6 +258,6 @@
     if (e.target.id === 'histBtn') m.style.display = 'flex';
   });
 </script>
-<script src="app.js?v=0.1.6"></script>
+<script src="app.js?v=0.1.7"></script>
 </body>
 </html>
