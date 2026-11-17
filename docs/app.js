@@ -2,7 +2,6 @@ const CONFIG = {
   owner: "zhaotang5",
   repo: "GitHub-MC-Storage",
   branch: "main",
-  token: "",
   usersPath: "users.json",
   cdnBase: "https://cdn.jsdelivr.net/gh",
   rawBase: "https://raw.githubusercontent.com",
@@ -10,7 +9,7 @@ const CONFIG = {
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.1.4";
+const VERSION = "v0.1.5";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
 const TOKEN_KEY = "ghdrive_token";
@@ -27,20 +26,34 @@ const $ = (id) => document.getElementById(id);
 const app = $("app");
 
 function getToken() {
-  if (CONFIG.token) return CONFIG.token;
-  try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
+  try { return (sessionStorage.getItem(TOKEN_KEY) || "").trim(); } catch (e) { return ""; }
 }
 
 function saveToken(t) {
-  try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+  try { sessionStorage.setItem(TOKEN_KEY, t); } catch (e) {}
 }
 
-function askToken() {
-  const t = prompt("请输入 GitHub Token（只需 Contents: Read and write 权限）。保存在本机浏览器，不会写进仓库：");
-  if (!t || !t.trim()) return false;
-  saveToken(t.trim());
-  setStatus("Token 已保存到本机");
+function clearToken() {
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) {}
+}
+
+function askToken(silent) {
+  const t = prompt("请输入 GitHub Token（只需要 Contents: Read and write 权限）。只保存在本次会话，关闭页面即失效，不会写进仓库：");
+  if (t === null) return false;
+  const v = t.trim();
+  if (!v) return false;
+  saveToken(v);
+  if (!silent) setStatus("Token 已设置（本次会话有效）");
+  refreshTokenUI();
   return true;
+}
+
+function refreshTokenUI() {
+  const b = $("tokenBtn");
+  if (!b) return;
+  b.textContent = getToken() ? "Token 已设置" : "设置 Token";
+  const c = $("clearTokenBtn");
+  if (c) c.style.display = getToken() ? "" : "none";
 }
 
 function esc(s) {
@@ -174,7 +187,7 @@ async function api(path, options = {}) {
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28"
   }, options.headers || {});
-  const t = getToken().trim();
+  const t = getToken();
   if (t) headers["Authorization"] = "Bearer " + t;
   if (options.body) headers["Content-Type"] = "application/json";
   const res = await fetch(API + path, Object.assign({}, options, { headers }));
@@ -185,6 +198,7 @@ async function api(path, options = {}) {
       if (j && j.message) msg += "：" + j.message;
     } catch (e) {}
     if (res.status === 401) msg = "401 Token 无效或已被吊销，请重新生成 Token 后点「设置 Token」";
+    if (res.status === 403 && /rate limit/i.test(msg)) msg = "403 匿名访问频率超限，点「设置 Token」后可用更高的限额";
     const err = new Error(msg);
     err.status = res.status;
     throw err;
@@ -226,7 +240,7 @@ async function loadUsersIfMissing() {
 }
 
 async function saveUsers() {
-  if (!getToken()) throw new Error("未配置 Token，无法写入");
+  if (!getToken()) throw new Error("未设置 Token：请先点工具栏「设置 Token」（仅本次会话有效）");
   if (!masterPass) throw new Error("缺少访问口令");
   let sha = usersFile ? usersFile.sha : undefined;
   try {
@@ -455,10 +469,16 @@ function renderToolbar() {
     ${up ? '<ore-button type="button" id="batchDelBtn">批量删除</ore-button>' : ""}
     <ore-button type="button" id="batchDlBtn">批量下载</ore-button>
     <ore-button type="button" id="refreshBtn">刷新</ore-button>
-    ${!getToken() ? '<ore-button type="button" id="tokenBtn">设置 Token</ore-button>' : ""}
+    <ore-button type="button" id="tokenBtn">${getToken() ? "Token 已设置" : "设置 Token"}</ore-button>
+    <ore-button type="button" id="clearTokenBtn" style="${getToken() ? "" : "display:none;"}">清除 Token</ore-button>
     ${up ? '<span class="muted">单文件建议 50MB 以内</span>' : '<span class="muted">你当前只有下载权限</span>'}
   `;
-  if (!getToken()) $("tokenBtn").addEventListener("click", askToken);
+  $("tokenBtn").addEventListener("click", () => askToken(false));
+  $("clearTokenBtn").addEventListener("click", () => {
+    clearToken();
+    setStatus("Token 已清除");
+    refreshTokenUI();
+  });
   if (up) {
     $("uploadBtn").addEventListener("click", () => $("filePicker").click());
     $("mkdirBtn").addEventListener("click", mkdir);
@@ -539,7 +559,7 @@ $("filePicker").addEventListener("change", async (e) => {
 });
 
 async function uploadFile(file, path) {
-  if (!getToken()) throw new Error("未配置 Token，无法上传");
+  if (!getToken()) throw new Error("未设置 Token：请先点工具栏「设置 Token」（仅本次会话有效）");
   const b64 = await fileToB64(file);
   if (file.size <= 900 * 1024) {
     const body = { message: "upload: " + path, branch: CONFIG.branch, content: b64 };
