@@ -2,7 +2,7 @@ const CONFIG = {
   owner: "zhaotang5",
   repo: "GitHub-MC-Storage",
   branch: "main",
-  token: "",
+  token: "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",
   usersPath: "users.json",
   cdnBase: "https://cdn.jsdelivr.net/gh",
   rawBase: "https://raw.githubusercontent.com",
