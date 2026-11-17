@@ -2,7 +2,7 @@ const CONFIG = {
   owner: "zhaotang5",
   repo: "GitHub-MC-Storage",
   branch: "main",
-  token: "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",
+  token: "",
   usersPath: "users.json",
   cdnBase: "https://cdn.jsdelivr.net/gh",
   rawBase: "https://raw.githubusercontent.com",
@@ -10,7 +10,7 @@ const CONFIG = {
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.1.3";
+const VERSION = "v0.1.4";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
 const TOKEN_KEY = "ghdrive_token";
@@ -174,7 +174,7 @@ async function api(path, options = {}) {
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28"
   }, options.headers || {});
-  const t = getToken();
+  const t = getToken().trim();
   if (t) headers["Authorization"] = "Bearer " + t;
   if (options.body) headers["Content-Type"] = "application/json";
   const res = await fetch(API + path, Object.assign({}, options, { headers }));
@@ -184,6 +184,7 @@ async function api(path, options = {}) {
       const j = await res.json();
       if (j && j.message) msg += "：" + j.message;
     } catch (e) {}
+    if (res.status === 401) msg = "401 Token 无效或已被吊销，请重新生成 Token 后点「设置 Token」";
     const err = new Error(msg);
     err.status = res.status;
     throw err;
