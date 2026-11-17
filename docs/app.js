@@ -1,38 +1,47 @@
-/* ============================================================
- * GitHub 网盘 v0.1.2
- * 存储：GitHub 仓库（API 读写）
- * 下载：jsDelivr CDN
- * 账号：仓库根目录 users.json（AES-GCM 加密，密码 PBKDF2 哈希）
- * ============================================================ */
-
 const CONFIG = {
-  owner: "zhaotang5",          // 仓库所有者
-  repo: "GitHub-MC-Storage",   // 存文件的仓库名
-  branch: "main",              // 分支
-  token: "",                   // 细粒度 Token（Contents: Read and write）
-  usersPath: "users.json",     // 账号文件在仓库里的路径
+  owner: "zhaotang5",
+  repo: "GitHub-MC-Storage",
+  branch: "main",
+  token: "",
+  usersPath: "users.json",
   cdnBase: "https://cdn.jsdelivr.net/gh",
   rawBase: "https://raw.githubusercontent.com",
-  cdnMaxSize: 20 * 1024 * 1024 // jsDelivr 单文件上限 20MB，超出走 raw
+  cdnMaxSize: 20 * 1024 * 1024
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.1.2";
+const VERSION = "v0.1.3";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
+const TOKEN_KEY = "ghdrive_token";
 const PBKDF2_ITER = 150000;
 
 let session = null;
 let masterPass = null;
-let usersFile = null; // { sha, data: { users: [...] }, encrypted }
+let usersFile = null;
 let cwd = "";
 let items = [];
 let selected = new Set();
 
-/* ---------------- 工具 ---------------- */
-
 const $ = (id) => document.getElementById(id);
 const app = $("app");
+
+function getToken() {
+  if (CONFIG.token) return CONFIG.token;
+  try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
+}
+
+function saveToken(t) {
+  try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+}
+
+function askToken() {
+  const t = prompt("请输入 GitHub Token（只需 Contents: Read and write 权限）。保存在本机浏览器，不会写进仓库：");
+  if (!t || !t.trim()) return false;
+  saveToken(t.trim());
+  setStatus("Token 已保存到本机");
+  return true;
+}
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
@@ -108,8 +117,6 @@ function fileToB64(file) {
   });
 }
 
-/* ---------------- 密码学 ---------------- */
-
 async function sha256Hex(str) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -135,7 +142,7 @@ async function verifyPassword(u, pwd) {
   if (u.hash.indexOf("pbkdf2:") === 0) {
     return (await hashPassword(u.salt, pwd)) === u.hash;
   }
-  return (await sha256Hex(u.salt + pwd)) === u.hash; // 兼容旧版 SHA-256
+  return (await sha256Hex(u.salt + pwd)) === u.hash;
 }
 
 async function encryptUsers(data, pass) {
@@ -162,14 +169,13 @@ function isEncrypted(raw) {
   }
 }
 
-/* ---------------- GitHub API ---------------- */
-
 async function api(path, options = {}) {
   const headers = Object.assign({
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28"
   }, options.headers || {});
-  if (CONFIG.token) headers["Authorization"] = "Bearer " + CONFIG.token;
+  const t = getToken();
+  if (t) headers["Authorization"] = "Bearer " + t;
   if (options.body) headers["Content-Type"] = "application/json";
   const res = await fetch(API + path, Object.assign({}, options, { headers }));
   if (!res.ok) {
@@ -199,8 +205,6 @@ function downloadUrl(item) {
   return CONFIG.rawBase + "/" + CONFIG.owner + "/" + CONFIG.repo + "/" + CONFIG.branch + "/" + p;
 }
 
-/* ---------------- users.json ---------------- */
-
 async function loadUsers() {
   const d = await api(contentsUrl(CONFIG.usersPath));
   const raw = b64ToText(d.content);
@@ -221,7 +225,7 @@ async function loadUsersIfMissing() {
 }
 
 async function saveUsers() {
-  if (!CONFIG.token) throw new Error("未配置 Token，无法写入");
+  if (!getToken()) throw new Error("未配置 Token，无法写入");
   if (!masterPass) throw new Error("缺少访问口令");
   let sha = usersFile ? usersFile.sha : undefined;
   try {
@@ -247,8 +251,6 @@ function findUser(name) {
   return usersFile.data.users.find((u) => u.u === name);
 }
 
-/* ---------------- 会话 ---------------- */
-
 function saveSession() {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   sessionStorage.setItem(MASTER_KEY, masterPass);
@@ -273,16 +275,12 @@ function logout() {
 function isAdmin() { return session && session.role === "admin"; }
 function canUpload() { return session && (session.role === "admin" || session.perm.upload); }
 
-/* ---------------- 状态提示 ---------------- */
-
 function setStatus(msg, isErr) {
   const el = $("status");
   if (!el) return;
   el.textContent = msg || "";
   el.className = "status" + (isErr ? " err" : "");
 }
-
-/* ================= 视图：初始化 ================= */
 
 function renderInit() {
   app.innerHTML = `
@@ -330,8 +328,6 @@ function renderInit() {
     }
   });
 }
-
-/* ================= 视图：登录 ================= */
 
 function renderLogin() {
   app.innerHTML = `
@@ -384,8 +380,6 @@ function renderLogin() {
   $("loginBtn").addEventListener("click", doLogin);
   $("loginPwd").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
 }
-
-/* ================= 视图：文件浏览 ================= */
 
 async function loadList() {
   try {
@@ -460,8 +454,10 @@ function renderToolbar() {
     ${up ? '<ore-button type="button" id="batchDelBtn">批量删除</ore-button>' : ""}
     <ore-button type="button" id="batchDlBtn">批量下载</ore-button>
     <ore-button type="button" id="refreshBtn">刷新</ore-button>
-    ${up ? '<span class="muted">上传限制：单文件 900KB 以上走 Git Blob 通道，建议 50MB 以内</span>' : '<span class="muted">你当前只有下载权限</span>'}
+    ${!getToken() ? '<ore-button type="button" id="tokenBtn">设置 Token</ore-button>' : ""}
+    ${up ? '<span class="muted">单文件建议 50MB 以内</span>' : '<span class="muted">你当前只有下载权限</span>'}
   `;
+  if (!getToken()) $("tokenBtn").addEventListener("click", askToken);
   if (up) {
     $("uploadBtn").addEventListener("click", () => $("filePicker").click());
     $("mkdirBtn").addEventListener("click", mkdir);
@@ -482,16 +478,16 @@ function renderList() {
     return `<tr>
       <td><input type="checkbox" data-i="${i}" ${selected.has(it.path) ? "checked" : ""}></td>
       <td class="name" data-i="${i}">${isDir ? "[文件夹] " : ""}${esc(it.name)}</td>
-      <td>${isDir ? "-" : fmtSize(it.size)}</td>
+      <td class="size">${isDir ? "-" : fmtSize(it.size)}</td>
       <td class="row-actions">
         ${isDir ? "" : `<button data-dl="${i}">下载</button>`}
         ${canUpload() ? `<button class="danger" data-del="${i}">删除</button>` : ""}
       </td>
     </tr>`;
   }).join("");
-  box.innerHTML = `<table class="files">
+  box.innerHTML = `<div class="table-wrap"><table class="files">
     <thead><tr><th></th><th>名称</th><th>大小</th><th>操作</th></tr></thead>
-    <tbody>${rows}</tbody></table>`;
+    <tbody>${rows}</tbody></table></div>`;
 
   box.querySelectorAll("input[type=checkbox]").forEach((cb) => {
     cb.addEventListener("change", () => {
@@ -524,8 +520,6 @@ function triggerDownload(item) {
   a.remove();
 }
 
-/* ---------------- 文件操作 ---------------- */
-
 $("filePicker").addEventListener("change", async (e) => {
   const files = Array.from(e.target.files || []);
   e.target.value = "";
@@ -544,7 +538,7 @@ $("filePicker").addEventListener("change", async (e) => {
 });
 
 async function uploadFile(file, path) {
-  if (!CONFIG.token) throw new Error("未配置 Token，无法上传");
+  if (!getToken()) throw new Error("未配置 Token，无法上传");
   const b64 = await fileToB64(file);
   if (file.size <= 900 * 1024) {
     const body = { message: "upload: " + path, branch: CONFIG.branch, content: b64 };
@@ -651,8 +645,6 @@ function batchDownload() {
   setStatus(`已开始下载 ${files.length} 个文件（浏览器可能拦截多个下载，请允许）`);
 }
 
-/* ---------------- 修改密码 ---------------- */
-
 async function changeMyPassword() {
   const pwd = prompt("请输入新密码：");
   if (!pwd) return;
@@ -668,8 +660,6 @@ async function changeMyPassword() {
     setStatus("修改失败：" + e.message, true);
   }
 }
-
-/* ================= 视图：人员管理 ================= */
 
 async function renderAdmin() {
   app.innerHTML = `
@@ -745,9 +735,9 @@ function renderUserTable() {
       ${u.u === session.u || u.role === "admin" ? "" : `<button class="danger" data-rm="${i}">删除</button>`}
     </td>
   </tr>`).join("");
-  $("userBox").innerHTML = `<table class="users">
+  $("userBox").innerHTML = `<div class="table-wrap"><table class="users">
     <thead><tr><th>用户名</th><th>角色</th><th>上传权限</th><th>下载权限</th><th>操作</th></tr></thead>
-    <tbody>${rows}</tbody></table>`;
+    <tbody>${rows}</tbody></table></div>`;
 
   $("userBox").querySelectorAll("input[data-up]").forEach((cb) => {
     cb.addEventListener("change", async () => {
@@ -792,8 +782,6 @@ function renderUserTable() {
   });
 }
 
-/* ---------------- 启动 ---------------- */
-
 (async function boot() {
   loadSession();
   if (session && masterPass) {
@@ -801,7 +789,7 @@ function renderUserTable() {
     return;
   }
   try {
-    const d = await api(contentsUrl(CONFIG.usersPath));
+    await api(contentsUrl(CONFIG.usersPath));
     renderLogin();
   } catch (e) {
     if (e.status === 404) { renderInit(); return; }
