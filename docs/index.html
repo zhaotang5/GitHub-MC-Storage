@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GitHub 网盘 v0.1.2</title>
+<title>GitHub 网盘 v0.1.3</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@latest/dist/styles.css">
 <script type="module">
   import "https://cdn.jsdelivr.net/npm/oreui-web@latest/+esm";
@@ -26,7 +26,6 @@
     --ore-card-highlight: rgba(255, 255, 255, 0.08);
     --ore-card-shadow: rgba(0, 0, 0, 0.6);
   }
-  /* OreUI 卡片主体默认横向 flex，强制改为纵向堆叠，否则表单会挤成一行 */
   .ore-card-body {
     display: flex;
     flex-direction: column;
@@ -34,6 +33,7 @@
     gap: 10px;
     box-sizing: border-box;
     width: 100%;
+    padding: 16px;
   }
   .ore-card-caption { display: block; min-width: 0; }
   .ore-card-title,
@@ -46,7 +46,7 @@
   }
   .ore-card-title { font-size: 18px; }
 
-  ore-button { display: inline-block; }
+  ore-button { display: inline-block; max-width: 100%; }
   ore-tag { display: inline-block; }
 
   #app {
@@ -57,7 +57,7 @@
   }
   .center-box {
     max-width: 400px;
-    margin: 10vh auto 0;
+    margin: 8vh auto 0;
   }
   .title-row {
     display: flex;
@@ -71,7 +71,7 @@
   h2 { font-size: 18px; margin: 0 0 4px; }
   .muted { opacity: 0.65; font-size: 13px; }
 
-  label.f { display: block; margin: 4px 0 0; font-size: 14px; }
+  label.f { display: block; margin: 2px 0 0; font-size: 14px; }
   label.f input[type="checkbox"] { margin-right: 6px; vertical-align: middle; }
   input[type="text"], input[type="password"] {
     display: block;
@@ -91,18 +91,19 @@
   .btn-col { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; align-items: flex-start; }
   .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-  .crumb { margin: 0; font-size: 14px; word-break: break-all; }
+  .crumb { margin: 0; font-size: 14px; word-break: break-all; line-height: 1.6; }
   .crumb a { color: #4c8bf5; cursor: pointer; text-decoration: none; }
   .crumb a:hover { text-decoration: underline; }
 
-  table.files { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: auto; }
+  .table-wrap { width: 100%; overflow-x: auto; }
+  table.files { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 420px; }
   table.files th, table.files td {
     text-align: left;
     padding: 8px 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     vertical-align: middle;
   }
-  table.files th:nth-child(1), table.files td:nth-child(1) { width: 28px; }
+  table.files th:nth-child(1), table.files td:nth-child(1) { width: 30px; }
   table.files td.name {
     white-space: normal;
     word-break: break-all;
@@ -110,7 +111,7 @@
     color: #e8e8e8;
   }
   table.files td.name:hover { color: #4c8bf5; }
-  table.files th { color: #999; font-weight: normal; font-size: 13px; }
+  table.files th { color: #999; font-weight: normal; font-size: 13px; white-space: nowrap; }
   .row-actions { white-space: nowrap; }
   .row-actions button {
     background: none;
@@ -134,19 +135,27 @@
   .status { font-size: 13px; color: #8bc34a; min-height: 18px; }
   .status.err { color: #f47e7e; }
 
-  table.users { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.users { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 480px; }
   table.users th, table.users td {
     text-align: left;
     padding: 8px 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     vertical-align: middle;
   }
-  table.users th { color: #999; font-weight: normal; font-size: 13px; }
+  table.users th { color: #999; font-weight: normal; font-size: 13px; white-space: nowrap; }
 
   .hidden { display: none !important; }
-  footer { text-align: center; opacity: 0.6; font-size: 12px; margin-top: 32px; }
+  footer { text-align: center; opacity: 0.6; font-size: 12px; margin-top: 28px; }
   .empty-tip { text-align: center; padding: 32px 0; opacity: 0.6; }
   .gap { height: 16px; }
+
+  @media (max-width: 600px) {
+    #app { padding: 20px 12px 40px; }
+    h1 { font-size: 20px; }
+    .center-box { margin: 3vh auto 0; }
+    .ore-card-body { padding: 12px; gap: 8px; }
+    table.files { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
