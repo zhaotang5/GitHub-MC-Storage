@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GitHub 网盘 v0.1.1</title>
+<title>GitHub 网盘 v0.1.2</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@latest/dist/styles.css">
 <script type="module">
   import "https://cdn.jsdelivr.net/npm/oreui-web@latest/+esm";
@@ -26,7 +26,29 @@
     --ore-card-highlight: rgba(255, 255, 255, 0.08);
     --ore-card-shadow: rgba(0, 0, 0, 0.6);
   }
+  /* OreUI 卡片主体默认横向 flex，强制改为纵向堆叠，否则表单会挤成一行 */
+  .ore-card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+  .ore-card-caption { display: block; min-width: 0; }
+  .ore-card-title,
+  .ore-card-description {
+    display: block;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    -webkit-line-clamp: unset;
+  }
+  .ore-card-title { font-size: 18px; }
+
   ore-button { display: inline-block; }
+  ore-tag { display: inline-block; }
+
   #app {
     max-width: 860px;
     margin: 0 auto;
@@ -34,7 +56,7 @@
     box-sizing: border-box;
   }
   .center-box {
-    max-width: 380px;
+    max-width: 400px;
     margin: 10vh auto 0;
   }
   .title-row {
@@ -46,11 +68,13 @@
     margin-bottom: 16px;
   }
   h1 { font-size: 24px; margin: 0; }
-  h2 { font-size: 18px; margin: 0 0 12px; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
   .muted { opacity: 0.65; font-size: 13px; }
 
-  label.f { display: block; margin: 12px 0 4px; font-size: 14px; }
+  label.f { display: block; margin: 4px 0 0; font-size: 14px; }
+  label.f input[type="checkbox"] { margin-right: 6px; vertical-align: middle; }
   input[type="text"], input[type="password"] {
+    display: block;
     width: 100%;
     box-sizing: border-box;
     padding: 8px 10px;
@@ -62,20 +86,23 @@
     font-family: inherit;
   }
   input[type="text"]:focus, input[type="password"]:focus { border-color: #4c8bf5; }
-  .btn-col { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  input[type="checkbox"] { width: 15px; height: 15px; }
+
+  .btn-col { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; align-items: flex-start; }
   .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-  .crumb { margin: 12px 0; font-size: 14px; }
+  .crumb { margin: 0; font-size: 14px; word-break: break-all; }
   .crumb a { color: #4c8bf5; cursor: pointer; text-decoration: none; }
   .crumb a:hover { text-decoration: underline; }
 
-  table.files { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.files { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: auto; }
   table.files th, table.files td {
     text-align: left;
     padding: 8px 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    white-space: nowrap;
+    vertical-align: middle;
   }
+  table.files th:nth-child(1), table.files td:nth-child(1) { width: 28px; }
   table.files td.name {
     white-space: normal;
     word-break: break-all;
@@ -84,6 +111,7 @@
   }
   table.files td.name:hover { color: #4c8bf5; }
   table.files th { color: #999; font-weight: normal; font-size: 13px; }
+  .row-actions { white-space: nowrap; }
   .row-actions button {
     background: none;
     border: none;
@@ -101,7 +129,7 @@
     gap: 8px;
     flex-wrap: wrap;
     align-items: center;
-    margin: 12px 0;
+    margin: 0;
   }
   .status { font-size: 13px; color: #8bc34a; min-height: 18px; }
   .status.err { color: #f47e7e; }
@@ -111,12 +139,14 @@
     text-align: left;
     padding: 8px 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    vertical-align: middle;
   }
   table.users th { color: #999; font-weight: normal; font-size: 13px; }
 
   .hidden { display: none !important; }
   footer { text-align: center; opacity: 0.6; font-size: 12px; margin-top: 32px; }
   .empty-tip { text-align: center; padding: 32px 0; opacity: 0.6; }
+  .gap { height: 16px; }
 </style>
 </head>
 <body>
