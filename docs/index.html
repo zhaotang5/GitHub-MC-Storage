@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>GitHub 网盘 v0.1.8</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@latest/dist/styles.css">
+<title>GitHub 网盘 v0.2.0</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@0.0.1/dist/styles.css">
 <script type="module">
-  import "https://cdn.jsdelivr.net/npm/oreui-web@latest/+esm";
+  import "https://cdn.jsdelivr.net/npm/oreui-web@0.0.1/+esm";
 </script>
 <style>
   html, body {
@@ -18,121 +18,67 @@
     margin: 0;
     min-height: 100vh;
   }
-  ore-card {
-    display: block;
+  body { padding-bottom: 40px; }
+
+  #nav { position: sticky; top: 0; z-index: 60; }
+  #nav:empty { display: none; }
+  ore-navbar { display: block; width: 100%; }
+
+  #app {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 20px 16px 0;
     box-sizing: border-box;
-    --ore-card-background: #1c1c1c;
-    --ore-card-foreground: #ffffff;
-    --ore-card-description: #b8b8b8;
-    --ore-card-border: #3d3d3d;
-    --ore-card-highlight: rgba(255, 255, 255, 0.08);
-    --ore-card-shadow: rgba(0, 0, 0, 0.6);
   }
+
+  .center-box { max-width: 430px; margin: 7vh auto 0; }
+
+  .page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 4px 0 14px;
+  }
+  .page-head h1 { font-size: 22px; margin: 0; }
+  .muted { opacity: 0.65; font-size: 13px; }
+
   .ore-card-body {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 12px;
     box-sizing: border-box;
     width: 100%;
-    padding: 16px;
+    padding: 18px;
   }
   .ore-card-caption { display: block; min-width: 0; }
-  .ore-card-title,
-  .ore-card-description {
+  .ore-card-title, .ore-card-description {
     display: block;
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
     -webkit-line-clamp: unset;
   }
-  .ore-card-title { font-size: 18px; }
+  .ore-card-caption .ore-card-title { font-size: 18px; }
 
-  ore-button { display: inline-block; max-width: 100%; }
+  ore-textfield { display: block; width: 100%; }
+  ore-button { vertical-align: middle; }
   ore-tag { display: inline-block; }
 
-  #app {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 32px 16px 48px;
-    box-sizing: border-box;
-  }
-  .center-box {
-    max-width: 400px;
-    margin: 8vh auto 0;
-  }
-  .title-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-  h1 { font-size: 24px; margin: 0; }
-  h2 { font-size: 18px; margin: 0 0 4px; }
-  .muted { opacity: 0.65; font-size: 13px; }
-
-  label.f { display: block; margin: 2px 0 0; font-size: 14px; }
-  label.f input[type="checkbox"] { margin-right: 6px; vertical-align: middle; }
-  input[type="text"], input[type="password"] {
-    display: block;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px 10px;
-    font-size: 14px;
-    color: #fff;
-    background: #0d0d0d;
-    border: 2px solid #3d3d3d;
-    outline: none;
-    font-family: inherit;
-  }
-  input[type="text"]:focus, input[type="password"]:focus { border-color: #4c8bf5; }
-  input[type="checkbox"] { width: 15px; height: 15px; }
-
-  .btn-col { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; align-items: flex-start; }
+  .btn-col { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .gap { height: 14px; }
 
-  .crumb { margin: 0; font-size: 14px; word-break: break-all; line-height: 1.6; }
-  .crumb a { color: #4c8bf5; cursor: pointer; text-decoration: none; }
+  .crumb { font-size: 14px; word-break: break-all; line-height: 1.7; }
+  .crumb a { color: #7aa7ff; cursor: pointer; text-decoration: none; }
   .crumb a:hover { text-decoration: underline; }
-
-  .table-wrap { width: 100%; overflow-x: auto; }
-  table.files { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 420px; }
-  table.files th, table.files td {
-    text-align: left;
-    padding: 8px 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    vertical-align: middle;
-  }
-  table.files th:nth-child(1), table.files td:nth-child(1) { width: 30px; }
-  table.files td.name {
-    white-space: normal;
-    word-break: break-all;
-    cursor: pointer;
-    color: #e8e8e8;
-  }
-  table.files td.name:hover { color: #4c8bf5; }
-  table.files th { color: #999; font-weight: normal; font-size: 13px; white-space: nowrap; }
-  .row-actions { white-space: nowrap; }
-  .row-actions button {
-    background: none;
-    border: none;
-    color: #4c8bf5;
-    cursor: pointer;
-    font-size: 13px;
-    padding: 2px 6px;
-    font-family: inherit;
-  }
-  .row-actions button.danger { color: #f47e7e; }
-  .row-actions button:hover { text-decoration: underline; }
 
   .toolbar {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: nowrap;
     align-items: center;
-    margin: 0;
     overflow-x: auto;
     padding-bottom: 4px;
     scrollbar-width: thin;
@@ -140,128 +86,142 @@
   .toolbar > * { flex: 0 0 auto; }
   .toolbar::-webkit-scrollbar { height: 6px; }
   .toolbar::-webkit-scrollbar-thumb { background: #3d3d3d; border-radius: 3px; }
-  .status { font-size: 13px; color: #8bc34a; min-height: 18px; }
-  .status.err { color: #f47e7e; }
 
-  table.users { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 480px; }
-  table.users th, table.users td {
+  .new-drop { display: inline-block; }
+  .new-label { display: inline-block; line-height: 1.25; }
+
+  .table-wrap { width: 100%; overflow-x: auto; }
+  table.files {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    min-width: 520px;
+  }
+  table.files th, table.files td {
     text-align: left;
-    padding: 8px 6px;
+    padding: 11px 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     vertical-align: middle;
+    line-height: 1.4;
   }
-  table.users th { color: #999; font-weight: normal; font-size: 13px; white-space: nowrap; }
+  table.files th {
+    color: #a9a9a9;
+    font-weight: normal;
+    font-size: 13px;
+    white-space: nowrap;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  table.files .c-check { width: 40px; }
+  table.files .c-check ore-checkbox { display: inline-block; vertical-align: middle; }
+  table.files .c-size { width: 110px; white-space: nowrap; }
+  table.files .c-act { width: 130px; white-space: nowrap; text-align: right; }
+  table.files td.c-name { cursor: pointer; }
+  table.files td.c-name:hover .fname { color: #7aa7ff; }
+  .fname { word-break: break-all; }
+  .ico-dir, .ico-file { display: inline-block; width: 18px; opacity: 0.75; }
+  .ico-dir { color: #ffd953; }
 
-  .hidden { display: none !important; }
-  footer { text-align: center; opacity: 0.6; font-size: 12px; margin-top: 28px; }
-  .empty-tip { text-align: center; padding: 32px 0; opacity: 0.6; }
-  .gap { height: 16px; }
+  .link-btn {
+    background: none;
+    border: none;
+    color: #7aa7ff;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px 6px;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  .link-btn.danger { color: #f47e7e; }
+  .link-btn:hover { text-decoration: underline; }
+  .token-line { margin-top: 2px; }
 
-  .global-bar {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-top: 14px;
-  }
-  .modal-mask {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.72);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    z-index: 999;
-  }
-  .modal {
-    width: 100%;
-    max-width: 560px;
-    max-height: 82vh;
-    overflow-y: auto;
-    background: #1c1c1c;
-    border: 2px solid #3d3d3d;
-    padding: 16px;
-    box-sizing: border-box;
-  }
-  .modal-head {
+  .batch-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    border-top: 2px solid rgba(255, 255, 255, 0.12);
+    padding-top: 12px;
+  }
+
+  .status { font-size: 13px; }
+  .empty-tip { text-align: center; padding: 34px 0; opacity: 0.65; }
+  .load-block {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 30px 0;
+    opacity: 0.85;
+    font-size: 14px;
+  }
+  .load-block .spin { font-size: 20px; display: inline-flex; }
+  ore-spinner { display: inline-block; }
+
+  footer { text-align: center; opacity: 0.55; font-size: 12px; margin-top: 26px; }
+
+  .avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-right: 8px;
+    background: #3c8527;
+    color: #fff;
+    font-size: 14px;
+    overflow: hidden;
+    vertical-align: middle;
+  }
+  .avatar.small { width: 22px; height: 22px; font-size: 12px; margin-right: 6px; }
+  .avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .uname { display: inline-block; line-height: 1.25; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+  .user-cell { display: inline-flex; align-items: center; }
+
+  .user-drop { display: inline-block; }
+  .ore-navbar-action-label { line-height: 1.25; }
+
+  .modal-body {
+    padding: 0 22px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-sizing: border-box;
+    min-width: min(78vw, 380px);
+  }
+  .modal-actions {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
-    margin-bottom: 8px;
+    padding: 14px 22px 18px;
   }
-  .modal-head h2 { margin: 0; }
-  .modal-head button {
-    background: none;
-    border: 2px solid #3d3d3d;
-    color: #ddd;
-    padding: 4px 10px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 13px;
-  }
-  .hist {
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    font-size: 13px;
-    line-height: 1.7;
-  }
+  .modal-actions > ore-button { width: 100%; }
+  .modal-text { margin: 0; font-size: 14px; line-height: 1.7; opacity: 0.9; }
+  .hist-wrap { max-height: 52vh; overflow-y: auto; }
+  .hist { padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 13px; }
   .hist:last-child { border-bottom: none; }
-  .hist b { color: #8bc34a; font-size: 14px; }
-  .hist p { margin: 4px 0 0; opacity: 0.82; white-space: pre-line; }
+  .hist b { color: #86d562; font-size: 14px; }
+  .hist p { margin: 3px 0 0; opacity: 0.82; line-height: 1.6; }
 
   @media (max-width: 600px) {
-    #app { padding: 20px 12px 40px; }
-    h1 { font-size: 20px; }
-    .center-box { margin: 3vh auto 0; }
-    .ore-card-body { padding: 12px; gap: 8px; }
-    table.files { font-size: 13px; }
+    #app { padding: 14px 10px 0; }
+    .page-head h1 { font-size: 19px; }
+    .center-box { margin: 2vh auto 0; }
+    .ore-card-body { padding: 13px; gap: 10px; }
+    table.files { font-size: 14px; min-width: 470px; }
+    table.files th, table.files td { padding: 9px 6px; }
+    .modal-body { min-width: auto; padding: 0 16px 4px; }
+    .modal-actions { padding: 12px 16px 16px; }
   }
 </style>
 </head>
 <body>
+<div id="nav"></div>
 <div id="app"></div>
-<input type="file" id="filePicker" class="hidden" multiple>
-<div class="modal-mask" id="historyModal">
-  <div class="modal">
-    <div class="modal-head">
-      <h2>版本履历</h2>
-      <button id="historyClose">关闭</button>
-    </div>
-    <div class="modal-body">
-      <div class="hist"><b>v0.1.8</b><p>· 上传流程更稳妥，中小体积文件统一走更安全的方式
-· 列表过滤更严格，隐藏文件不再出现在任何目录
-· 鉴权失败时自动降级为匿名读取，不影响浏览和下载
-· 补充了几种常见错误的中文提示</p></div>
-      <div class="hist"><b>v0.1.7</b><p>· 列表自动隐藏 docs 文件夹、LICENSE、users.json
-· 「上传文件 / 新建文件夹 / 批量删除 / 批量下载 / 刷新」固定在一排，超宽时横向滚动</p></div>
-      <div class="hist"><b>v0.1.6</b><p>· 所有页面（初始化 / 登录 / 文件 / 人员管理）统一加入「设置 Token」「清除 Token」「版本履历」按钮
-· 新增版本履历弹窗</p></div>
-      <div class="hist"><b>v0.1.5</b><p>· 移除源码中的内置 Token，改为页面内设置
-· Token 只存 sessionStorage，关闭页面即失效</p></div>
-      <div class="hist"><b>v0.1.4</b><p>· 清空已失效的 Token
-· app.js 加版本查询参数破除缓存
-· 401 单独提示「Token 无效或已被吊销」</p></div>
-      <div class="hist"><b>v0.1.3</b><p>· 删除全部代码注释
-· 文件表格与用户表格改为横向滚动容器，窄屏不再挤压
-· 新增移动端媒体查询</p></div>
-      <div class="hist"><b>v0.1.2</b><p>· 修复 OreUI 卡片纵排、标题描述被截断、输入框宽度、按钮错位等问题</p></div>
-      <div class="hist"><b>v0.1.1</b><p>· users.json 使用 AES-GCM + PBKDF2 加密
-· 密码改为 PBKDF2 加盐哈希
-· 增加「访问口令」防止用户数据被离线解密</p></div>
-      <div class="hist"><b>v0.1.0</b><p>· 首个版本：登录、文件浏览/下载（jsDelivr 加速）、上传、删除、新建文件夹、批量操作、人员管理与上传/下载权限</p></div>
-    </div>
-  </div>
-</div>
-<script>
-  document.addEventListener('click', function (e) {
-    var m = document.getElementById('historyModal');
-    if (!m) return;
-    if (e.target.id === 'historyClose' || e.target === m) m.style.display = 'none';
-    if (e.target.id === 'histBtn') m.style.display = 'flex';
-  });
-</script>
-<script src="app.js?v=0.1.8"></script>
+<input type="file" id="filePicker" multiple style="display:none">
+<input type="file" id="avatarPicker" accept="image/*" style="display:none">
+<script src="app.js?v=0.2.0"></script>
 </body>
 </html>
