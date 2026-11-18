@@ -9,12 +9,12 @@ const CONFIG = {
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.1.7";
+const VERSION = "v0.1.8";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
 const TOKEN_KEY = "ghdrive_token";
 const PBKDF2_ITER = 150000;
-const HIDDEN_NAMES = new Set(["doc", "docs", "LICENSE", "users.json"]);
+const HIDDEN_NAMES = new Set(["doc", "docs", "license", "license.md", "users.json", ".gitkeep", ".gitignore"]);
 
 let session = null;
 let masterPass = null;
@@ -210,15 +210,24 @@ function isEncrypted(raw) {
   }
 }
 
-async function api(path, options = {}) {
+function send(path, options, token) {
   const headers = Object.assign({
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28"
   }, options.headers || {});
-  const t = getToken();
-  if (t) headers["Authorization"] = "Bearer " + t;
+  if (token) headers["Authorization"] = "Bearer " + token;
   if (options.body) headers["Content-Type"] = "application/json";
-  const res = await fetch(API + path, Object.assign({}, options, { headers }));
+  return fetch(API + path, Object.assign({}, options, { headers }));
+}
+
+async function api(path, options = {}) {
+  const t = getToken();
+  let res = await send(path, options, t);
+  if (res.status === 401 && t) {
+    const retry = await send(path, options, "");
+    if (retry.ok) return retry.status === 204 ? null : retry.json();
+    res = retry;
+  }
   if (!res.ok) {
     let msg = res.status + " " + res.statusText;
     try {
@@ -227,6 +236,8 @@ async function api(path, options = {}) {
     } catch (e) {}
     if (res.status === 401) msg = "401 Token 无效或已被吊销，请重新生成 Token 后点「设置 Token」";
     if (res.status === 403 && /rate limit/i.test(msg)) msg = "403 匿名访问频率超限，点「设置 Token」后可用更高的限额";
+    if (res.status === 404 && /files/i.test(msg)) msg = "404 仓库中没有该文件";
+    if (res.status === 422) msg = "422 提交被拒绝（常见原因：文件过大或名称冲突），请换个文件名或用网页端上传";
     const err = new Error(msg);
     err.status = res.status;
     throw err;
@@ -432,7 +443,7 @@ async function loadList() {
   try {
     const d = await api(contentsUrl(cwd));
     const list = Array.isArray(d) ? d : [d];
-    items = list.filter((it) => !HIDDEN_NAMES.has(it.name));
+    items = list.filter((it) => !HIDDEN_NAMES.has(String(it.name).toLowerCase()));
     items.sort((a, b) => {
       if ((a.type === "dir") !== (b.type === "dir")) return a.type === "dir" ? -1 : 1;
       return a.name.localeCompare(b.name);
@@ -588,7 +599,7 @@ $("filePicker").addEventListener("change", async (e) => {
 async function uploadFile(file, path) {
   if (!getToken()) throw new Error("未设置 Token：请先点工具栏「设置 Token」（仅本次会话有效）");
   const b64 = await fileToB64(file);
-  if (file.size <= 900 * 1024) {
+  if (file.size <= 650 * 1024) {
     const body = { message: "upload: " + path, branch: CONFIG.branch, content: b64 };
     try {
       const d = await api(contentsUrl(path));

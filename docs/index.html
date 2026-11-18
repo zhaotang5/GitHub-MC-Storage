@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>GitHub 网盘 v0.1.7</title>
+<title>GitHub 网盘 v0.1.8</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@latest/dist/styles.css">
 <script type="module">
   import "https://cdn.jsdelivr.net/npm/oreui-web@latest/+esm";
@@ -230,6 +230,10 @@
       <button id="historyClose">关闭</button>
     </div>
     <div class="modal-body">
+      <div class="hist"><b>v0.1.8</b><p>· 上传流程更稳妥，中小体积文件统一走更安全的方式
+· 列表过滤更严格，隐藏文件不再出现在任何目录
+· 鉴权失败时自动降级为匿名读取，不影响浏览和下载
+· 补充了几种常见错误的中文提示</p></div>
       <div class="hist"><b>v0.1.7</b><p>· 列表自动隐藏 docs 文件夹、LICENSE、users.json
 · 「上传文件 / 新建文件夹 / 批量删除 / 批量下载 / 刷新」固定在一排，超宽时横向滚动</p></div>
       <div class="hist"><b>v0.1.6</b><p>· 所有页面（初始化 / 登录 / 文件 / 人员管理）统一加入「设置 Token」「清除 Token」「版本履历」按钮
@@ -258,6 +262,6 @@
     if (e.target.id === 'histBtn') m.style.display = 'flex';
   });
 </script>
-<script src="app.js?v=0.1.7"></script>
+<script src="app.js?v=0.1.8"></script>
 </body>
 </html>
