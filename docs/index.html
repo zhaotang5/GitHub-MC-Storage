@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>GitHub 网盘 v0.2.1</title>
+<title>GitHub 网盘 v0.2.2</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@0.0.1/dist/styles.css">
 <script type="module">
   import "https://cdn.jsdelivr.net/npm/oreui-web@0.0.1/+esm";
@@ -32,6 +32,71 @@
   }
 
   .center-box { max-width: 430px; margin: 7vh auto 0; }
+
+  .auth {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 392px;
+    gap: 16px;
+    align-items: stretch;
+    max-width: 1040px;
+    min-height: calc(100vh - 130px);
+    margin: 0 auto;
+    padding: 22px 16px 0;
+    box-sizing: border-box;
+  }
+  .auth-hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    min-height: 430px;
+    background: #0a0d09;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    box-sizing: border-box;
+  }
+  .hero-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .hero-art {
+    position: absolute;
+    inset: 0;
+    background-color: #0a0d09;
+    background-image:
+      linear-gradient(rgba(120, 190, 90, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120, 190, 90, 0.08) 1px, transparent 1px),
+      radial-gradient(120% 95% at 18% 8%, rgba(60, 133, 39, 0.32), transparent 62%),
+      radial-gradient(95% 85% at 88% 92%, rgba(122, 167, 255, 0.18), transparent 66%);
+    background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%;
+  }
+  .hero-caption {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0) 80%);
+  }
+  .hero-mark { display: flex; gap: 4px; margin-bottom: 12px; }
+  .hero-mark i { display: block; width: 13px; height: 13px; background: #3c8527; }
+  .hero-mark i:nth-child(2) { background: #57b23a; }
+  .hero-mark i:nth-child(3) { background: #7aa7ff; }
+  .hero-mark i:nth-child(4) { background: #2f6b1e; }
+  .hero-title { font-size: 27px; font-weight: 700; color: #fff; line-height: 1.25; }
+  .hero-sub { font-size: 13px; opacity: 0.72; margin-top: 6px; }
+  .auth-panel { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+  .auth-panel footer { margin-top: 18px; }
+
+  .set-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .avatar.big { width: 52px; height: 52px; margin-right: 0; font-size: 22px; }
+  .set-info { flex: 1 1 140px; min-width: 0; }
+  .set-name { font-size: 16px; margin-bottom: 2px; word-break: break-all; }
+  .set-sep { height: 2px; background: rgba(255, 255, 255, 0.1); margin: 4px 0; }
+  .set-label { font-size: 13px; color: #a9a9a9; }
 
   .page-head {
     display: flex;
@@ -210,10 +275,24 @@
   ore-accordion .ore-accordion-content { font-size: 13px; line-height: 1.7; padding: 8px 14px 12px; }
   ore-accordion .ore-accordion-content p { margin: 4px 0 0; opacity: 0.85; }
 
+  @media (max-width: 860px) {
+    .auth {
+      grid-template-columns: 1fr;
+      max-width: 520px;
+      min-height: 0;
+    }
+    .auth-hero { min-height: 168px; }
+    .hero-caption { padding: 16px; }
+    .hero-title { font-size: 20px; }
+    .hero-sub { font-size: 12px; }
+    .auth-panel { justify-content: flex-start; }
+  }
+
   @media (max-width: 600px) {
     #app { padding: 14px 10px 0; }
     .page-head h1 { font-size: 19px; }
     .center-box { margin: 2vh auto 0; }
+    .auth { padding: 12px 10px 0; gap: 12px; }
     .ore-card-body { padding: 13px; gap: 10px; }
     table.files { font-size: 14px; min-width: 470px; }
     table.files th, table.files td { padding: 9px 6px; }
@@ -229,6 +308,6 @@
 <div id="app"></div>
 <input type="file" id="filePicker" multiple style="display:none">
 <input type="file" id="avatarPicker" accept="image/*" style="display:none">
-<script src="app.js?v=0.2.1"></script>
+<script src="app.js?v=0.2.2"></script>
 </body>
 </html>
