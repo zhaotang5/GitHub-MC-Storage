@@ -9,7 +9,7 @@ const CONFIG = {
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.2.0";
+const VERSION = "v0.2.1";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
 const TOKEN_KEY = "ghdrive_token";
@@ -17,6 +17,14 @@ const PBKDF2_ITER = 150000;
 const HIDDEN_NAMES = new Set(["doc", "docs", "license", "license.md", "users.json", ".gitkeep", ".gitignore"]);
 
 const HISTORY = [
+  { v: "v0.2.1", items: [
+    "顶部导航栏布局修正，标题居中、右侧菜单不再挤压",
+    "版本履历改为折叠面板，可逐版本展开与收起",
+    "上传、删除后的列表刷新更可靠",
+    "弹窗宽度与按钮文字对齐修正",
+    "移动端导航栏精简，Token 入口收进用户菜单",
+    "若干细节与交互问题修复"
+  ] },
   { v: "v0.2.0", items: [
     "全站接入 OreUI 组件：导航栏、弹窗、复选框、通知、加载指示器、下拉菜单",
     "新增顶部导航栏：中间显示标题，右侧显示头像与用户下拉菜单",
@@ -323,7 +331,14 @@ function promptBox(opt) {
       description: opt.description,
       body: `<ore-textfield id="${fid}"${typeAttr} label="${esc(opt.label || "")}" placeholder="${esc(opt.placeholder || "")}" value="${esc(opt.value || "")}"></ore-textfield>`,
       actions: [
-        { label: opt.okLabel || "确定", onClick: (a) => { finish(readField(m, fid).trim()); a.close(); } },
+        {
+          label: opt.okLabel || "确定",
+          onClick: (a) => {
+            const raw = readField(m, fid);
+            finish(opt.type === "password" ? raw : raw.trim());
+            a.close();
+          }
+        },
         { label: "取消", color: "secondary", onClick: (a) => { finish(null); a.close(); } }
       ]
     });
@@ -480,6 +495,7 @@ function renderNav() {
           <button class="ore-dropdown-item" type="button" data-value="avatar">修改头像</button>
           <button class="ore-dropdown-item" type="button" data-value="password">修改密码</button>
           <button class="ore-dropdown-item" type="button" data-value="history">版本履历</button>
+          <button class="ore-dropdown-item" type="button" data-value="token">Token 设置</button>
           <button class="ore-dropdown-item" type="button" data-value="logout">退出登录</button>
         </div>
       </ore-dropdown>
@@ -494,7 +510,9 @@ function renderNav() {
     dd.addEventListener("change", (e) => {
       const v = e.detail && e.detail.value;
       dd.open = false;
+      dd.value = "";
       if (v === "admin") renderAdmin();
+      else if (v === "token") openTokenModal();
       else if (v === "avatar") pickAvatar();
       else if (v === "password") changeMyPassword();
       else if (v === "history") showHistory();
@@ -537,9 +555,15 @@ function openTokenModal() {
 }
 
 function showHistory() {
-  const body = HISTORY.map((h) =>
-    `<div class="hist"><b>${esc(h.v)}</b>${h.items.map((t) => `<p>· ${esc(t)}</p>`).join("")}</div>`
-  ).join("");
+  const body = HISTORY.map((h, i) => {
+    const inner = h.items.map((t) => `<p>· ${esc(t)}</p>`).join("");
+    return `<ore-accordion class="hist-acc" value="${esc(h.v)}"${i === 0 ? " default-open" : ""}>
+      <ore-icon-button class="ore-accordion-trigger" type="button" aria-label="展开 ${esc(h.v)}">
+        <span class="ore-accordion-title">${esc(h.v)}</span>
+      </ore-icon-button>
+      <div class="ore-accordion-content">${inner}</div>
+    </ore-accordion>`;
+  }).join("");
   openModal({
     title: "版本履历",
     body: `<div class="hist-wrap">${body}</div>`,
@@ -684,8 +708,10 @@ function renderLogin() {
   };
 
   $("loginBtn").addEventListener("click", doLogin);
-  const pwdEl = $("loginPwd");
-  if (pwdEl && pwdEl.input) pwdEl.input.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+  ["loginMaster", "loginName", "loginPwd"].forEach((id) => {
+    const el = $(id);
+    if (el && el.input) el.input.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+  });
 }
 
 async function loadList() {
@@ -698,11 +724,11 @@ async function loadList() {
   });
 }
 
-async function reloadList(expectGone) {
+async function reloadList(expectGone, expectPresent) {
   const box = $("listBox");
   if (box) box.innerHTML = spinBlock("正在读取目录");
   try {
-    let gone = false;
+    let settled = false;
     for (let i = 0; i < 4; i++) {
       try {
         await loadList();
@@ -710,13 +736,14 @@ async function reloadList(expectGone) {
         if (e.status === 404) items = [];
         else throw e;
       }
-      if (!expectGone) { gone = true; break; }
-      if (!items.some((x) => x.path === expectGone)) { gone = true; break; }
+      const goneOk = !expectGone || !items.some((x) => x.path === expectGone);
+      const presentOk = !expectPresent || items.some((x) => x.path === expectPresent);
+      if (goneOk && presentOk) { settled = true; break; }
       await sleep(450);
     }
     selected.clear();
     renderList();
-    if (expectGone && !gone) toast("操作可能未生效，请稍后手动刷新", "error");
+    if (!settled) toast("列表可能未同步，请稍后点「刷新」", "error");
   } catch (e) {
     if (box) box.innerHTML = `<div class="empty-tip">${esc("加载失败：" + e.message)}</div>`;
   }
@@ -744,7 +771,7 @@ function renderBrowser() {
         <div class="crumb" id="crumb"></div>
         <div class="toolbar" id="toolbar">
           ${canUpload() ? `<ore-dropdown class="new-drop" variant="bordered">
-            <ore-button class="ore-dropdown-trigger" type="button"><span class="new-label">新建</span></ore-button>
+            <ore-button class="ore-dropdown-trigger" type="button">新建</ore-button>
             <div class="ore-dropdown-menu">
               <button class="ore-dropdown-item" type="button" data-value="upload">上传文件</button>
               <button class="ore-dropdown-item" type="button" data-value="folder">新建文件夹</button>
@@ -777,6 +804,7 @@ function renderBrowser() {
     newDrop.addEventListener("change", (e) => {
       const v = e.detail && e.detail.value;
       newDrop.open = false;
+      newDrop.value = "";
       if (v === "upload") $("filePicker").click();
       else if (v === "folder") makeFolder();
     });
@@ -882,19 +910,22 @@ function triggerDownload(item) {
 
 $("filePicker").addEventListener("change", async (e) => {
   const files = Array.from(e.target.files || []);
+  const targetDir = cwd;
   e.target.value = "";
   if (!files.length) return;
   let okCount = 0;
+  let lastName = "";
   for (const f of files) {
     try {
       toast("正在上传 " + f.name, "info");
-      await uploadFile(f, joinPath(cwd, f.name));
+      await uploadFile(f, joinPath(targetDir, f.name));
       okCount++;
+      lastName = joinPath(targetDir, f.name);
     } catch (err) {
       toast(f.name + " 上传失败：" + err.message, "error");
     }
   }
-  await reloadList();
+  if (cwd === targetDir) await reloadList(null, okCount ? lastName : null);
   if (okCount) toast("已上传 " + okCount + " 个文件");
 });
 
@@ -967,7 +998,7 @@ async function deleteRecursive(item) {
 
 async function deleteItem(item) {
   const ok = await confirmBox(
-    "确定删除「" + item.name + "」？" + (item.type === "dir" ? "其中的全部内容会一并删除。" : ""),
+    "确定删除「" + item.name + "」？" + (item.type === "dir" ? " 其中的全部内容会一并删除。" : ""),
     { danger: true, okLabel: "删除", title: "删除确认" }
   );
   if (!ok) return;
