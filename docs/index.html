@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>GitHub 网盘 v0.2.0</title>
+<title>GitHub 网盘 v0.2.1</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/oreui-web@0.0.1/dist/styles.css">
 <script type="module">
   import "https://cdn.jsdelivr.net/npm/oreui-web@0.0.1/+esm";
@@ -20,9 +20,9 @@
   }
   body { padding-bottom: 40px; }
 
-  #nav { position: sticky; top: 0; z-index: 60; }
+  #nav { position: sticky; top: 0; z-index: 60; background: #000; }
   #nav:empty { display: none; }
-  ore-navbar { display: block; width: 100%; }
+  ore-navbar { width: 100%; }
 
   #app {
     max-width: 1180px;
@@ -88,7 +88,6 @@
   .toolbar::-webkit-scrollbar-thumb { background: #3d3d3d; border-radius: 3px; }
 
   .new-drop { display: inline-block; }
-  .new-label { display: inline-block; line-height: 1.25; }
 
   .table-wrap { width: 100%; overflow-x: auto; }
   table.files {
@@ -115,7 +114,7 @@
   table.files .c-check { width: 40px; }
   table.files .c-check ore-checkbox { display: inline-block; vertical-align: middle; }
   table.files .c-size { width: 110px; white-space: nowrap; }
-  table.files .c-act { width: 130px; white-space: nowrap; text-align: right; }
+  table.files .c-act { white-space: nowrap; text-align: right; }
   table.files td.c-name { cursor: pointer; }
   table.files td.c-name:hover .fname { color: #7aa7ff; }
   .fname { word-break: break-all; }
@@ -166,22 +165,26 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    margin-right: 8px;
+    width: 26px;
+    height: 26px;
+    margin-right: 7px;
     background: #3c8527;
     color: #fff;
-    font-size: 14px;
+    font-size: 13px;
     overflow: hidden;
     vertical-align: middle;
   }
   .avatar.small { width: 22px; height: 22px; font-size: 12px; margin-right: 6px; }
   .avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .uname { display: inline-block; line-height: 1.25; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+  .uname { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
   .user-cell { display: inline-flex; align-items: center; }
 
   .user-drop { display: inline-block; }
-  .ore-navbar-action-label { line-height: 1.25; }
+  .user-drop .ore-dropdown-trigger {
+    --ore-button-unit: 1.5px;
+    white-space: nowrap;
+  }
+  .ore-navbar-start { padding-left: 8px; }
 
   .modal-body {
     padding: 0 22px 4px;
@@ -189,7 +192,10 @@
     flex-direction: column;
     gap: 12px;
     box-sizing: border-box;
-    min-width: min(78vw, 380px);
+    width: 100%;
+    min-width: 0;
+    max-height: 62vh;
+    overflow-y: auto;
   }
   .modal-actions {
     display: flex;
@@ -199,11 +205,10 @@
   }
   .modal-actions > ore-button { width: 100%; }
   .modal-text { margin: 0; font-size: 14px; line-height: 1.7; opacity: 0.9; }
-  .hist-wrap { max-height: 52vh; overflow-y: auto; }
-  .hist { padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 13px; }
-  .hist:last-child { border-bottom: none; }
-  .hist b { color: #86d562; font-size: 14px; }
-  .hist p { margin: 3px 0 0; opacity: 0.82; line-height: 1.6; }
+  .hist-wrap { display: block; }
+  .hist-acc { width: 100%; margin-bottom: 2px; }
+  ore-accordion .ore-accordion-content { font-size: 13px; line-height: 1.7; padding: 8px 14px 12px; }
+  ore-accordion .ore-accordion-content p { margin: 4px 0 0; opacity: 0.85; }
 
   @media (max-width: 600px) {
     #app { padding: 14px 10px 0; }
@@ -212,7 +217,9 @@
     .ore-card-body { padding: 13px; gap: 10px; }
     table.files { font-size: 14px; min-width: 470px; }
     table.files th, table.files td { padding: 9px 6px; }
-    .modal-body { min-width: auto; padding: 0 16px 4px; }
+    .modal-body { padding: 0 16px 4px; max-height: 58vh; }
+    .ore-navbar-start { display: none; }
+    .ore-navbar-title { font-size: 14px; }
     .modal-actions { padding: 12px 16px 16px; }
   }
 </style>
@@ -222,6 +229,6 @@
 <div id="app"></div>
 <input type="file" id="filePicker" multiple style="display:none">
 <input type="file" id="avatarPicker" accept="image/*" style="display:none">
-<script src="app.js?v=0.2.0"></script>
+<script src="app.js?v=0.2.1"></script>
 </body>
 </html>
