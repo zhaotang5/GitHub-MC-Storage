@@ -771,7 +771,7 @@ function renderBrowser() {
         <div class="crumb" id="crumb"></div>
         <div class="toolbar" id="toolbar">
           ${canUpload() ? `<ore-dropdown class="new-drop" variant="bordered">
-            <ore-button class="ore-dropdown-trigger" type="button">新建</ore-button>
+            <ore-button class="ore-dropdown-trigger" type="button"><span class="new-label">新建</span></ore-button>
             <div class="ore-dropdown-menu">
               <button class="ore-dropdown-item" type="button" data-value="upload">上传文件</button>
               <button class="ore-dropdown-item" type="button" data-value="folder">新建文件夹</button>
