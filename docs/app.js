@@ -5,11 +5,12 @@ const CONFIG = {
   usersPath: "users.json",
   cdnBase: "https://cdn.jsdelivr.net/gh",
   rawBase: "https://raw.githubusercontent.com",
-  cdnMaxSize: 20 * 1024 * 1024
+  cdnMaxSize: 20 * 1024 * 1024,
+  loginImage: ""
 };
 
 const API = "https://api.github.com";
-const VERSION = "v0.2.1";
+const VERSION = "v0.2.2";
 const SESSION_KEY = "ghdrive_session";
 const MASTER_KEY = "ghdrive_master";
 const TOKEN_KEY = "ghdrive_token";
@@ -17,12 +18,19 @@ const PBKDF2_ITER = 150000;
 const HIDDEN_NAMES = new Set(["doc", "docs", "license", "license.md", "users.json", ".gitkeep", ".gitignore"]);
 
 const HISTORY = [
+  { v: "v0.2.2", items: [
+    "登录与初始化界面翻新：左侧展示画面，右侧为输入区域，窄屏自动改为上下排列",
+    "新增设置页，集中管理版本履历、修改用户名、修改密码、修改头像与 Token",
+    "导航栏左侧入口改为设置，用户菜单精简为人员管理、设置、退出登录",
+    "支持在设置页内直接修改用户名",
+    "若干细节与显示问题修复"
+  ] },
   { v: "v0.2.1", items: [
     "顶部导航栏布局修正，标题居中、右侧菜单不再挤压",
     "版本履历改为折叠面板，可逐版本展开与收起",
     "上传、删除后的列表刷新更可靠",
     "弹窗宽度与按钮文字对齐修正",
-    "移动端导航栏精简，Token 入口收进用户菜单",
+    "移动端导航栏精简",
     "若干细节与交互问题修复"
   ] },
   { v: "v0.2.0", items: [
@@ -77,6 +85,7 @@ let usersFile = null;
 let cwd = "";
 let items = [];
 let selected = new Set();
+let view = "boot";
 
 const $ = (id) => document.getElementById(id);
 const appEl = $("app");
@@ -371,8 +380,8 @@ async function api(path, options) {
       const j = await res.json();
       if (j && j.message) msg += "：" + j.message;
     } catch (e) {}
-    if (res.status === 401) msg = "Token 无效或已被吊销，请在「Token 设置」中重新填写";
-    if (res.status === 403 && /rate limit/i.test(msg)) msg = "匿名访问频率超限，请在「Token 设置」中填入 Token";
+    if (res.status === 401) msg = "Token 无效或已被吊销，请在设置页重新填写";
+    if (res.status === 403 && /rate limit/i.test(msg)) msg = "匿名访问频率超限，请在设置页填入 Token";
     if (res.status === 404 && /files/i.test(msg)) msg = "仓库中没有该文件";
     if (res.status === 422) msg = "提交被拒绝（常见原因：文件过大或名称冲突）";
     const err = new Error(msg);
@@ -416,7 +425,7 @@ async function loadUsersIfMissing() {
 }
 
 async function saveUsers() {
-  if (!getToken()) throw new Error("未设置 Token，请先在导航栏打开「Token 设置」");
+  if (!getToken()) throw new Error("未设置 Token，请先在设置页填写");
   if (!masterPass) throw new Error("缺少访问口令");
   let sha;
   try {
@@ -477,8 +486,8 @@ function renderNav() {
   }
   navEl.innerHTML = `<ore-navbar aria-label="主导航">
     <div class="ore-navbar-start">
-      <button class="ore-navbar-action" id="tokenBtn" type="button">
-        <span class="ore-navbar-action-label">${getToken() ? "Token 已设置" : "Token 设置"}</span>
+      <button class="ore-navbar-action" id="settingsBtn" type="button">
+        <span class="ore-navbar-action-label" id="settingsBtnLabel">设置</span>
       </button>
     </div>
     <span class="ore-navbar-title">GitHub 网盘</span>
@@ -492,18 +501,15 @@ function renderNav() {
           <button class="ore-dropdown-item" type="button" data-value="who" disabled>${esc(session.u)}</button>
           <button class="ore-dropdown-item" type="button" data-value="perm" disabled>权限：${esc(permText(session))}</button>
           ${isAdmin() ? '<button class="ore-dropdown-item" type="button" data-value="admin">人员管理</button>' : ""}
-          <button class="ore-dropdown-item" type="button" data-value="avatar">修改头像</button>
-          <button class="ore-dropdown-item" type="button" data-value="password">修改密码</button>
-          <button class="ore-dropdown-item" type="button" data-value="history">版本履历</button>
-          <button class="ore-dropdown-item" type="button" data-value="token">Token 设置</button>
+          <button class="ore-dropdown-item" type="button" data-value="settings">设置</button>
           <button class="ore-dropdown-item" type="button" data-value="logout">退出登录</button>
         </div>
       </ore-dropdown>
     </div>
   </ore-navbar>`;
 
-  const tb = $("tokenBtn");
-  if (tb) tb.addEventListener("click", openTokenModal);
+  const sb = $("settingsBtn");
+  if (sb) sb.addEventListener("click", renderSettings);
 
   const dd = navEl.querySelector(".user-drop");
   if (dd) {
@@ -512,10 +518,7 @@ function renderNav() {
       dd.open = false;
       dd.value = "";
       if (v === "admin") renderAdmin();
-      else if (v === "token") openTokenModal();
-      else if (v === "avatar") pickAvatar();
-      else if (v === "password") changeMyPassword();
-      else if (v === "history") showHistory();
+      else if (v === "settings") renderSettings();
       else if (v === "logout") doLogout();
     });
   }
@@ -534,7 +537,8 @@ function openTokenModal() {
           const v = readField(m, "tokenField").trim();
           if (!v) { toast("请输入 Token", "error"); return; }
           saveToken(v);
-          renderNav();
+          const f = $("setToken");
+          if (f && f.input) f.input.value = v;
           toast("Token 已保存（本次会话有效）");
           a.close();
         }
@@ -544,7 +548,8 @@ function openTokenModal() {
         color: "destructive",
         onClick: (a) => {
           clearToken();
-          renderNav();
+          const f = $("setToken");
+          if (f && f.input) f.input.value = "";
           toast("Token 已删除", "info");
           a.close();
         }
@@ -554,8 +559,8 @@ function openTokenModal() {
   });
 }
 
-function showHistory() {
-  const body = HISTORY.map((h, i) => {
+function historyHtml() {
+  return HISTORY.map((h, i) => {
     const inner = h.items.map((t) => `<p>· ${esc(t)}</p>`).join("");
     return `<ore-accordion class="hist-acc" value="${esc(h.v)}"${i === 0 ? " default-open" : ""}>
       <ore-icon-button class="ore-accordion-trigger" type="button" aria-label="展开 ${esc(h.v)}">
@@ -564,9 +569,12 @@ function showHistory() {
       <div class="ore-accordion-content">${inner}</div>
     </ore-accordion>`;
   }).join("");
+}
+
+function showHistory() {
   openModal({
     title: "版本履历",
-    body: `<div class="hist-wrap">${body}</div>`,
+    body: `<div class="hist-wrap">${historyHtml()}</div>`,
     actions: [{ label: "关闭", color: "secondary", onClick: (a) => a.close() }]
   });
 }
@@ -601,14 +609,35 @@ $("avatarPicker").addEventListener("change", async (e) => {
     await saveUsers();
     session.avatar = data;
     saveSession();
-    renderNav();
+    if (view === "settings") renderSettings();
+    else renderNav();
     toast("头像已更新");
   } catch (err) {
     toast("头像更新失败：" + err.message, "error");
   }
 });
 
+function authShell(inner, mode) {
+  view = mode;
+  navEl.innerHTML = "";
+  const hero = CONFIG.loginImage
+    ? `<img class="hero-img" src="${esc(CONFIG.loginImage)}" alt="">`
+    : `<div class="hero-art"></div>`;
+  appEl.innerHTML = `<div class="auth">
+    <div class="auth-hero">
+      ${hero}
+      <div class="hero-caption">
+        <div class="hero-mark"><i></i><i></i><i></i><i></i></div>
+        <div class="hero-title">GitHub 网盘</div>
+        <div class="hero-sub">文件只存放在你自己的 GitHub 仓库里</div>
+      </div>
+    </div>
+    <div class="auth-panel">${inner}</div>
+  </div>`;
+}
+
 function renderCenter(inner) {
+  view = "error";
   navEl.innerHTML = "";
   appEl.innerHTML = `<div class="center-box">${inner}<footer>GitHub 网盘 ${VERSION}</footer></div>`;
 }
@@ -621,7 +650,7 @@ function readInline(id) {
 }
 
 function renderInit() {
-  renderCenter(`<ore-card>
+  authShell(`<ore-card>
     <div class="ore-card-body">
       <div class="ore-card-caption">
         <div class="ore-card-title">初始化网盘</div>
@@ -632,7 +661,7 @@ function renderInit() {
       <ore-textfield id="initPwd" type="password" label="管理员密码"></ore-textfield>
       <div class="btn-col"><ore-button type="button" id="initBtn">创建并进入</ore-button></div>
     </div>
-  </ore-card>`);
+  </ore-card><footer>GitHub 网盘 ${VERSION}</footer>`, "init");
 
   $("initBtn").addEventListener("click", async () => {
     const mp = readInline("initMaster").trim();
@@ -663,10 +692,10 @@ function renderInit() {
 }
 
 function renderLogin() {
-  renderCenter(`<ore-card>
+  authShell(`<ore-card>
     <div class="ore-card-body">
       <div class="ore-card-caption">
-        <div class="ore-card-title">GitHub 网盘</div>
+        <div class="ore-card-title">登录</div>
         <div class="ore-card-description">请输入访问口令和账号密码</div>
       </div>
       <ore-textfield id="loginMaster" type="password" label="访问口令"></ore-textfield>
@@ -675,7 +704,7 @@ function renderLogin() {
       <div class="btn-col"><ore-button type="button" id="loginBtn">登录</ore-button></div>
       <div class="token-line"><button class="link-btn" id="loginToken" type="button">${getToken() ? "Token 已设置，点此修改" : "设置 Token（可选，提升接口限额）"}</button></div>
     </div>
-  </ore-card>`);
+  </ore-card><footer>GitHub 网盘 ${VERSION}</footer>`, "login");
 
   $("loginToken").addEventListener("click", openTokenModal);
 
@@ -761,6 +790,7 @@ function crumbHtml() {
 }
 
 function renderBrowser() {
+  view = "browser";
   renderNav();
   appEl.innerHTML = `<div class="page-head">
       <h1>文件</h1>
@@ -930,7 +960,7 @@ $("filePicker").addEventListener("change", async (e) => {
 });
 
 async function uploadFile(file, path) {
-  if (!getToken()) throw new Error("未设置 Token，请先在导航栏打开「Token 设置」");
+  if (!getToken()) throw new Error("未设置 Token，请先在设置页填写");
   const data = await fileToB64(file);
   if (file.size <= 650 * 1024) {
     const body = { message: "upload: " + path, branch: CONFIG.branch, content: data };
@@ -1033,23 +1063,136 @@ function batchDownload() {
   toast("已开始下载 " + files.length + " 个文件", "info");
 }
 
-async function changeMyPassword() {
-  const pwd = await promptBox({ title: "修改密码", label: "新密码", type: "password", description: "至少 6 个字符" });
-  if (pwd == null) return;
-  if (pwd.length < 6) { toast("密码至少 6 个字符", "error"); return; }
-  try {
-    await loadUsersIfMissing();
-    const u = findUser(session.u);
-    u.salt = randomSalt();
-    u.hash = await hashPassword(u.salt, pwd);
-    await saveUsers();
-    toast("密码已修改");
-  } catch (e) {
-    toast("修改失败：" + e.message, "error");
-  }
+function renderSettings() {
+  view = "settings";
+  renderNav();
+  const avatarInner = session.avatar
+    ? `<img class="avatar-img" src="${session.avatar}" alt="">`
+    : esc(String(session.u).slice(0, 1).toUpperCase());
+  appEl.innerHTML = `<div class="page-head">
+      <h1>设置</h1>
+      <ore-button type="button" id="backBtn" color="secondary">返回文件</ore-button>
+    </div>
+    <ore-card>
+      <div class="ore-card-body">
+        <div class="ore-card-caption">
+          <div class="ore-card-title">账号</div>
+          <div class="ore-card-description">当前权限：${esc(permText(session))}</div>
+        </div>
+        <div class="set-row">
+          <span class="avatar big">${avatarInner}</span>
+          <div class="set-info">
+            <div class="set-name">${esc(session.u)}</div>
+            <div class="muted">头像会随账号保存在用户数据中</div>
+          </div>
+          <ore-button type="button" id="avatarBtn" color="secondary">修改头像</ore-button>
+        </div>
+        <div class="set-sep"></div>
+        <div class="set-label">用户名</div>
+        <ore-textfield id="setUsername" label="用户名" value="${esc(session.u)}"></ore-textfield>
+        <div class="btn-row"><ore-button type="button" id="saveNameBtn">保存用户名</ore-button></div>
+        <div class="set-sep"></div>
+        <div class="set-label">密码</div>
+        <ore-textfield id="setPwd" type="password" label="新密码"></ore-textfield>
+        <ore-textfield id="setPwd2" type="password" label="确认新密码"></ore-textfield>
+        <div class="btn-row"><ore-button type="button" id="savePwdBtn">修改密码</ore-button></div>
+      </div>
+    </ore-card>
+    <div class="gap"></div>
+    <ore-card>
+      <div class="ore-card-body">
+        <div class="ore-card-caption">
+          <div class="ore-card-title">Token</div>
+          <div class="ore-card-description">${getToken() ? "已设置，仅保存在本次会话，关闭页面即失效" : "未设置，浏览与下载会受匿名接口限额影响"}</div>
+        </div>
+        <ore-textfield id="setToken" type="password" label="GitHub Token" placeholder="github_pat_..." value="${esc(getToken())}"></ore-textfield>
+        <div class="btn-row">
+          <ore-button type="button" id="saveTokenBtn">保存 Token</ore-button>
+          <ore-button type="button" id="clearTokenBtn" color="destructive">删除 Token</ore-button>
+        </div>
+        <div class="muted">只需要 Contents: Read and write 权限；上传、删除、人员管理都必须有 Token。</div>
+      </div>
+    </ore-card>
+    <div class="gap"></div>
+    <ore-card>
+      <div class="ore-card-body">
+        <div class="ore-card-caption">
+          <div class="ore-card-title">版本履历</div>
+          <div class="ore-card-description">当前版本 ${VERSION}</div>
+        </div>
+        <div class="hist-wrap">${historyHtml()}</div>
+      </div>
+    </ore-card>
+    <footer>GitHub 网盘 ${VERSION}</footer>`;
+
+  $("backBtn").addEventListener("click", renderBrowser);
+  $("avatarBtn").addEventListener("click", pickAvatar);
+
+  $("saveNameBtn").addEventListener("click", async () => {
+    const name = readInline("setUsername").trim();
+    if (!name) { toast("用户名不能为空", "error"); return; }
+    if (name.length > 24) { toast("用户名最多 24 个字符", "error"); return; }
+    if (name === session.u) { toast("用户名没有变化", "info"); return; }
+    const btn = $("saveNameBtn");
+    btn.setAttribute("loading", "");
+    try {
+      await loadUsersIfMissing();
+      if (findUser(name)) { toast("用户名已存在", "error"); btn.removeAttribute("loading"); return; }
+      const u = findUser(session.u);
+      if (!u) { toast("找不到当前用户", "error"); btn.removeAttribute("loading"); return; }
+      u.u = name;
+      await saveUsers();
+      session.u = name;
+      saveSession();
+      renderSettings();
+      toast("用户名已修改为 " + name);
+    } catch (e) {
+      btn.removeAttribute("loading");
+      toast("修改失败：" + e.message, "error");
+    }
+  });
+
+  $("savePwdBtn").addEventListener("click", async () => {
+    const pwd = readInline("setPwd");
+    const pwd2 = readInline("setPwd2");
+    if (!pwd || !pwd2) { toast("请填写新密码并确认", "error"); return; }
+    if (pwd.length < 6) { toast("密码至少 6 个字符", "error"); return; }
+    if (pwd !== pwd2) { toast("两次输入的密码不一致", "error"); return; }
+    const btn = $("savePwdBtn");
+    btn.setAttribute("loading", "");
+    try {
+      await loadUsersIfMissing();
+      const u = findUser(session.u);
+      if (!u) { toast("找不到当前用户", "error"); btn.removeAttribute("loading"); return; }
+      u.salt = randomSalt();
+      u.hash = await hashPassword(u.salt, pwd);
+      await saveUsers();
+      toast("密码已修改");
+      renderSettings();
+    } catch (e) {
+      btn.removeAttribute("loading");
+      toast("修改失败：" + e.message, "error");
+    }
+  });
+
+  $("saveTokenBtn").addEventListener("click", () => {
+    const v = readInline("setToken").trim();
+    if (!v) { toast("请输入 Token", "error"); return; }
+    saveToken(v);
+    renderSettings();
+    toast("Token 已保存（本次会话有效）");
+  });
+
+  $("clearTokenBtn").addEventListener("click", () => {
+    if (!getToken()) { toast("当前没有设置 Token", "info"); return; }
+    clearToken();
+    renderSettings();
+    toast("Token 已删除", "info");
+  });
 }
 
 function renderAdmin() {
+  view = "admin";
   renderNav();
   appEl.innerHTML = `<div class="page-head">
       <h1>人员管理</h1>
@@ -1178,21 +1321,20 @@ function renderUserTable() {
   });
 }
 
-(async function boot() {
+(function boot() {
   loadSession();
   if (session && masterPass) {
     renderBrowser();
     return;
   }
-  try {
-    await api(contentsUrl(CONFIG.usersPath));
+  api(contentsUrl(CONFIG.usersPath)).then(() => {
     renderLogin();
-  } catch (e) {
+  }).catch((e) => {
     if (e.status === 404) { renderInit(); return; }
     renderCenter(`<ore-card><div class="ore-card-body">
       <div class="ore-card-title">加载失败</div>
       <div class="ore-card-description">${esc(e.message)}</div>
       <div class="ore-card-description">请检查 app.js 顶部 CONFIG 中的 owner / repo / branch，仓库必须为 Public，并确认网络可以访问 api.github.com。</div>
     </div></ore-card>`);
-  }
+  });
 })();
